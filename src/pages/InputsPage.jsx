@@ -7,13 +7,45 @@ import PrimaryButton from '../components/PrimaryButton';
 import ResultCard from '../components/ResultCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getRecommendations } from '../api/getRecommendations';
+import { useEffect } from 'react';
 
 const InputsPage = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    console.log('API Key loaded:', import.meta.env.VITE_OPENAI_API_KEY ? 'Yes' : 'No');
+    console.log('Key starts with:', import.meta.env.VITE_OPENAI_API_KEY?.substring(0, 8));
+  }, []);
   
   const { register, handleSubmit, formState: { errors } } = useForm();
+
+  // In src/pages/InputsPage.jsx - Update the error display
+  {error && (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="bg-red-50 border border-red-200 rounded-xl p-6 text-center"
+    >
+      <p className="text-red-700 font-medium mb-4">{error}</p>
+      {error.includes('rate limit') && (
+        <button
+          onClick={() => {
+            setError('');
+            // Auto-retry after 10 seconds
+            setTimeout(() => {
+              handleSubmit(onSubmit)();
+            }, 10000);
+          }}
+          className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Retry in 10 seconds
+        </button>
+      )}
+    </motion.div>
+  )}
 
   const facultyOptions = [
     { value: 'computer-science', label: 'Computer Science & IT' },
@@ -37,6 +69,7 @@ const InputsPage = () => {
     { value: 'singapore', label: 'Singapore' },
   ];
 
+  // src/pages/InputsPage.jsx - Only the onSubmit function needs update
   const onSubmit = async (data) => {
     setLoading(true);
     setError('');
@@ -44,6 +77,12 @@ const InputsPage = () => {
 
     try {
       const recommendations = await getRecommendations(data.faculty, data.country);
+      
+      // Validate the response structure
+      if (!Array.isArray(recommendations) || recommendations.length === 0) {
+        throw new Error('No recommendations received. Please try again.');
+      }
+      
       setResults(recommendations);
     } catch (err) {
       setError(err.message);
